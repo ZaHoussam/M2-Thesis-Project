@@ -7,6 +7,7 @@ from sqlalchemy import (
     Boolean, CheckConstraint, DateTime,
     Float, ForeignKey, Integer, String, ARRAY
 )
+# pyrefly: ignore [missing-import]
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -50,11 +51,10 @@ class FaceEmbedding(Base):
         CheckConstraint("array_length(embedding, 1) = 512", name="chk_embedding_length"),
     )
 
-    id:          Mapped[int]      = mapped_column(Integer, primary_key=True)
-    user_id:     Mapped[int]      = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    embedding:   Mapped[list]     = mapped_column(ARRAY(Float), nullable=False)
-    angle_label: Mapped[str]      = mapped_column(String(50), nullable=True)
-    created_at:  Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    id:         Mapped[int]      = mapped_column(Integer, primary_key=True)
+    user_id:    Mapped[int]      = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    embedding:  Mapped[list]     = mapped_column(ARRAY(Float), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="embeddings")
 

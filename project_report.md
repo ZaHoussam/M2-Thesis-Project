@@ -92,9 +92,8 @@ The project is structured into two main modules: **Client** (Edge Device) and **
    - **File:** `server/core/matcher.py` (`cosine_similarity`)
    - **Logic:** Calculates the cosine of the angle between the incoming 512-dimensional embedding and the stored embeddings in the database using the dot product formula: `(A · B) / (||A|| * ||B||)`. It outputs a score between -1.0 and 1.0, where 1.0 represents an exact match.
 
-2. **Three-Zone Decision Logic**
+2. **Two-Zone Decision Logic**
    - **File:** `server/core/matcher.py` (`decide`)
-   - **Logic:** Uses predefined thresholds to categorize the similarity score into three strict zones:
+   - **Logic:** Uses predefined thresholds to categorize the similarity score into two strict zones:
      - **Zone A (`ALLOW`)**: Score is greater than `THRESHOLD_ALLOW`. The user is instantly authenticated.
-     - **Zone B (`MFA_CHALLENGE`)**: Score is between `THRESHOLD_MFA` and `THRESHOLD_ALLOW`. The system is unsure and prompts the user for a secondary factor (e.g., PIN).
-     - **Zone C (`DENY`)**: Score is below `THRESHOLD_MFA`. The face does not match any enrolled user, and access is immediately denied.
+     - **Zone B (`DENY`)**: Score is below `THRESHOLD_ALLOW`. The face does not match any enrolled user, and access is immediately denied.
