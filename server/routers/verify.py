@@ -52,7 +52,6 @@ async def ws_verify(websocket: WebSocket):
                     select(
                         FaceEmbedding.user_id,
                         FaceEmbedding.embedding,
-                        FaceEmbedding.angle_label,
                     )
                     .join(User, User.id == FaceEmbedding.user_id)
                     .where(User.is_active == True)
@@ -61,7 +60,6 @@ async def ws_verify(websocket: WebSocket):
                     {
                         "user_id":     r.user_id,
                         "embedding":   r.embedding,
-                        "angle_label": r.angle_label,
                     }
                     for r in rows
                 ]

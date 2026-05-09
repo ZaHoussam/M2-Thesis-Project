@@ -13,7 +13,7 @@ for secure lab access management.
 ### 1. Database
 
 ```bash
-psql -U <user> -c "CREATE DATABASE lab_access;"
+psql -U  -c "CREATE DATABASE lab_access;"
 psql -U <user> -d lab_access -f server/schema.sql
 ```
 
@@ -30,7 +30,7 @@ uvicorn main:app --reload
 
 ```bash
 cd client
-cp .env.example .env     # fill in your values
+cp ../.env.example .env     # fill in your values
 pip install -r requirements.txt
 python main.py
 ```
