@@ -1,0 +1,13 @@
+# ── Client (edge device) requirements ────────────────────────
+# Computer vision & AI
+onnxruntime==1.18.0
+opencv-python-headless==4.9.0.80
+insightface==1.7.7
+Pillow==10.3.0
+
+# Communication
+websockets==12.0
+
+# Math & config
+numpy==1.26.4
+python-dotenv==1.0.1
