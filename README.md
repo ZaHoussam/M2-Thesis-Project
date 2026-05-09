@@ -30,7 +30,7 @@ uvicorn main:app --reload
 
 ```bash
 cd client
-cp ../.env.example .env     # fill in your values
+cp .env.example .env     # fill in your values
 pip install -r requirements.txt
 python main.py
 ```
