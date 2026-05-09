@@ -13,8 +13,8 @@ for secure lab access management.
 ### 1. Database
 
 ```bash
-psql -U mrlhou -c "CREATE DATABASE lab_access;"
-psql -U mrlhou -d lab_access -f server/schema.sql
+psql -U <user> -c "CREATE DATABASE lab_access;"
+psql -U <user> -d lab_access -f server/schema.sql
 ```
 
 ### 2. Server
