@@ -29,11 +29,10 @@ CREATE TABLE users (
 );
 
 CREATE TABLE face_embeddings (
-    id          SERIAL          PRIMARY KEY,
-    user_id     INTEGER         NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    embedding   FLOAT8[]        NOT NULL,
-    angle_label VARCHAR(50),
-    created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    id          SERIAL      PRIMARY KEY,
+    user_id     INTEGER     NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    embedding   FLOAT8[]    NOT NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT chk_embedding_length CHECK (array_length(embedding, 1) = 512)
 );

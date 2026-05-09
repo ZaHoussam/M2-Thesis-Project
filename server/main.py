@@ -3,8 +3,10 @@
 # ================================================================
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
 from config import settings
+from db.session import engine
 from routers import enroll, verify
 
 app = FastAPI(
@@ -24,6 +26,17 @@ app.include_router(enroll.router)
 app.include_router(verify.router)
 
 
+@app.on_event("startup")
+async def startup():
+    """Warm up DB connection pool on startup."""
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        print("[DB] Connection pool warmed up.")
+    except Exception as e:
+        print(f"[DB] Startup connection failed: {e}")
+
+
 @app.get("/", tags=["Health"])
 async def root():
     return {"status": "ok", "service": "Lab Access Control API v2.0"}
@@ -34,10 +47,10 @@ async def health():
     return {"status": "healthy"}
 
 
-@app.get("/debug-env", tags=["Health"])
+@app.get("/debug", tags=["Health"])
 async def debug_env():
     return {
-        "threshold_allow":         settings.threshold_allow,
-        "max_embeddings_per_user": settings.max_embeddings_per_user,
-        "min_face_size":           settings.min_face_size,
+        "threshold_allow": settings.threshold_allow,
+        "threshold_deny":  settings.threshold_deny,
+        "min_face_size":   settings.min_face_size,
     }
