@@ -17,7 +17,7 @@ class FrameAggregator:
     that represents the face across N frames of natural movement.
     """
 
-    def __init__(self, n_frames: int = 7):
+    def __init__(self, n_frames: int = 3):
         self.n_frames = n_frames
         self._buffer  = deque(maxlen=n_frames)
 

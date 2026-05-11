@@ -1,94 +1,86 @@
 # ================================================================
-#  core/ws_client.py — WebSocket client + MFA state machine
-#  Now updates AppState so the display reflects auth results
+#  core/ws_client.py — WebSocket auth client
+#  Sends embeddings to server, receives decisions,
+#  pushes display state back to camera process.
 # ================================================================
 import json
 import asyncio
 import httpx
 import websockets
+from multiprocessing import Queue
+
 from config import settings
 
 
 class AuthClient:
-    def __init__(self, state):
-        self.state     = state        # shared AppState instance
-        self.mfa_token = None
+
+    def __init__(self, state_queue: Queue):
+        self.state_queue = state_queue   # sends display state to camera process
+        self.mfa_token   = None
+        self._state      = {
+            "state":     "SCANNING",
+            "score":     None,
+            "user_name": None,
+            "bbox":      None,
+        }
+
+    def _push_state(self):
+        """Send current display state to camera process."""
+        try:
+            # Clear old state first — only latest matters
+            while not self.state_queue.empty():
+                self.state_queue.get_nowait()
+            self.state_queue.put_nowait(dict(self._state))
+        except Exception:
+            pass
+
+    def _set_state(self, state: str, score=None, user_name=None):
+        self._state["state"]     = state
+        self._state["score"]     = score
+        self._state["user_name"] = user_name
+        self._push_state()
 
     async def run(self, embedding_queue: asyncio.Queue):
-        async with websockets.connect(settings.server_ws_url) as ws:
-            print(f"[CLIENT] Connected to {settings.server_ws_url}")
+        """Auto-retry connection loop."""
+        while True:
+            try:
+                async with websockets.connect(settings.server_ws_url) as ws:
+                    print(f"[CLIENT] Connected to {settings.server_ws_url}")
+                    await self._handle(ws, embedding_queue)
+            except (ConnectionRefusedError, OSError):
+                print("[CLIENT] Server not reachable — retrying in 3s...")
+                self._set_state("SCANNING")
+                await asyncio.sleep(3)
+            except Exception as e:
+                print(f"[CLIENT] Connection lost: {e} — retrying in 3s...")
+                self._set_state("SCANNING")
+                await asyncio.sleep(3)
 
-            while True:
-                if self.state.state == "SCANNING":
-                    embedding = await embedding_queue.get()
+    async def _handle(self, ws, embedding_queue: asyncio.Queue):
+        while True:
+            if self._state["state"] == "SCANNING":
+                embedding = await embedding_queue.get()
 
-                    await ws.send(json.dumps({
-                        "embedding": embedding,
-                        "lab_id":    settings.lab_id,
-                    }))
-                    response = json.loads(await ws.recv())
-                    decision = response.get("decision")
+                await ws.send(json.dumps({
+                    "embedding": embedding,
+                    "lab_id":    settings.lab_id,
+                }))
 
-                    self.state.score = response.get("similarity_score")
-                    print(f"[AUTH] {decision} — score: {self.state.score}")
+                response = json.loads(await ws.recv())
+                decision = response.get("decision")
+                score    = response.get("similarity_score")
 
-                    if decision == "ALLOW":
-                        self.state.state     = "ALLOW"
-                        self.state.user_name = response.get("user_name")
-                        await asyncio.sleep(2.5)
-                        self.state.state = "SCANNING"
+                print(f"[AUTH] {decision} — score: {score}  margin: {response.get('margin')}")
 
-                    elif decision == "MFA_CHALLENGE":
-                        self.mfa_token       = response.get("mfa_token")
-                        self.state.state     = "MFA_PENDING"
-                        self.state.pin_len   = 0
-                        print("[AUTH] Face recognised — enter PIN")
-
-                    elif decision == "DENY":
-                        self.state.state = "DENY"
-                        await asyncio.sleep(1.5)
-                        self.state.state = "SCANNING"
-
-                elif self.state.state == "MFA_PENDING":
-                    pin = await asyncio.get_event_loop().run_in_executor(
-                        None, self._get_pin
-                    )
-                    result   = await self._submit_pin(pin)
-                    decision = result.get("decision")
-                    print(f"[MFA] {decision} — {result.get('message')}")
-
-                    if decision == "MFA_SUCCESS":
-                        self.state.state     = "ALLOW"
-                        self.state.user_name = result.get("user_name")
-                    else:
-                        self.state.state = "DENY"
-
+                if decision == "ALLOW":
+                    self._set_state("ALLOW", score, response.get("user_name"))
                     await asyncio.sleep(2.5)
-                    self.state.state   = "SCANNING"
-                    self.state.pin_len = 0
-                    self.mfa_token     = None
+                    self._set_state("SCANNING")
 
-                else:
-                    await asyncio.sleep(0.05)
+                elif decision == "DENY":
+                    self._set_state("DENY", score)
+                    await asyncio.sleep(1.5)
+                    self._set_state("SCANNING")
 
-    def _get_pin(self) -> str:
-        """Blocking PIN input — runs in thread executor."""
-        pin = ""
-        print("Enter PIN (4 digits): ", end="", flush=True)
-        while len(pin) < 4:
-            import msvcrt
-            ch = msvcrt.getwch()
-            if ch.isdigit():
-                pin += ch
-                self.state.pin_len = len(pin)
-                print("*", end="", flush=True)
-        print()
-        return pin
-
-    async def _submit_pin(self, pin: str) -> dict:
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{settings.server_rest_url}/verify-mfa",
-                json={"mfa_token": self.mfa_token, "pin": pin},
-            )
-            return resp.json()
+            else:
+                await asyncio.sleep(0.05)

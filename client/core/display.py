@@ -99,6 +99,42 @@ def draw_frame(
     if bbox is None and state == "SCANNING":
         _draw_guide_box(out, w, h)
 
+    # ── 5. Full-screen result overlay (Striking UI) ──────────────
+    if state in ("ALLOW", "DENY"):
+        # Subtle full-frame tint
+        overlay_tint = np.full_like(out, color)
+        cv2.addWeighted(out, 0.85, overlay_tint, 0.15, 0, out)
+
+        # Draw a central "Decision Card"
+        card_w, card_h = 320, 140
+        cx, cy = w // 2, h // 2
+        x1, y1 = cx - card_w // 2, cy - card_h // 2
+        x2, y2 = cx + card_w // 2, cy + card_h // 2
+
+        # Card background (dark glass look)
+        card_sub = out[y1:y2, x1:x2].copy()
+        cv2.rectangle(card_sub, (0, 0), (card_w, card_h), (10, 10, 10), -1)
+        cv2.addWeighted(out[y1:y2, x1:x2], 0.3, card_sub, 0.7, 0, out[y1:y2, x1:x2])
+        
+        # Card border
+        cv2.rectangle(out, (x1, y1), (x2, y2), color, 2)
+        
+        # Big Label (ALLOW / DENIED)
+        label = ZONE_LABELS.get(state, "")
+        ts = cv2.getTextSize(label, FONT_BOLD, 1.3, 3)[0]
+        cv2.putText(out, label,
+                    (cx - ts[0] // 2, cy - 10),
+                    FONT_BOLD, 1.3, color, 3, cv2.LINE_AA)
+
+        # Subtext (User Name or Error Message)
+        subtext = f"Welcome, {user_name}" if state == "ALLOW" else "Access Restricted"
+        if state == "ALLOW" and not user_name: subtext = "Access Granted"
+        
+        ts2 = cv2.getTextSize(subtext, FONT, 0.65, 1)[0]
+        cv2.putText(out, subtext,
+                    (cx - ts2[0] // 2, cy + 35),
+                    FONT, 0.65, (220, 220, 220), 1, cv2.LINE_AA)
+
     return out
 
 

@@ -31,15 +31,12 @@ class FacePipeline:
 
     def __init__(self):
         self._app = FaceAnalysis(
-            name      = "buffalo_l",
-            providers = ["CPUExecutionProvider"],
+            name        = "buffalo_l",
+            allowed_modules = ["detection", "recognition"],  # ← add this
+            providers   = ["CPUExecutionProvider"],
         )
-        # det_size: resolution fed to RetinaFace detector
-        # 640x640 is the recommended default — good balance of
-        # speed vs accuracy for webcam distance
         self._app.prepare(ctx_id=0, det_size=(640, 640))
-        print("[PIPELINE] InsightFace buffalo_l loaded.")
-        print("[PIPELINE] RetinaFace + ArcFace ready.")
+        print("[PIPELINE] InsightFace loaded — detection + recognition only.")
 
     def process(self, frame_bgr: np.ndarray) -> dict | None:
         """

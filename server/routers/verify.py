@@ -2,7 +2,10 @@
 #  routers/verify.py — WebSocket /ws/verify
 #  Binary ALLOW / DENY — no MFA zone
 # ================================================================
+from db import session
 import json
+import time
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
@@ -64,10 +67,13 @@ async def ws_verify(websocket: WebSocket):
                     for r in rows
                 ]
 
-                # Match
-                result = find_best_match(embedding, candidates)
+                # Match — with latency measurement
+    
+                t_start = time.perf_counter()
+                result  = find_best_match(embedding, candidates)
+                latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
 
-                # Log
+                # Log — add latency_ms to response
                 log = AccessLog(
                     user_id          = result.user_id,
                     lab_id           = lab_id,
@@ -86,6 +92,7 @@ async def ws_verify(websocket: WebSocket):
                 "similarity_score": result.similarity_score,
                 "user_id":          result.user_id,
                 "margin":           result.margin,
+                "latency_ms":       latency_ms,
                 "message":          messages[result.decision],
             }))
 
