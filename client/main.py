@@ -43,20 +43,33 @@ def show_loading_screen():
 
 
 def bridge_thread_fn(
-    mp_queue:     Queue,
+    mp_queue:      Queue,
     asyncio_queue: asyncio.Queue,
-    loop:         asyncio.AbstractEventLoop,
+    loop:          asyncio.AbstractEventLoop,
 ):
     """
-    Bridge — moves embeddings from multiprocessing.Queue
-    to asyncio.Queue safely.
+    Moves embeddings from multiprocessing.Queue to asyncio.Queue.
+    If asyncio.Queue is full — drain it first then insert latest.
+    We always want the newest embedding, never a stale one.
     """
     while True:
         try:
             data = mp_queue.get(timeout=1)
-            loop.call_soon_threadsafe(
-                lambda d=data: asyncio_queue.put_nowait(d)
-            )
+
+            def safe_put(d=data):
+                # Drain queue if full — drop old, keep latest
+                while asyncio_queue.full():
+                    try:
+                        asyncio_queue.get_nowait()
+                    except Exception:
+                        break
+                try:
+                    asyncio_queue.put_nowait(d)
+                except Exception:
+                    pass
+
+            loop.call_soon_threadsafe(safe_put)
+
         except Exception:
             continue
 
@@ -171,7 +184,7 @@ async def auth_task(asyncio_embed: asyncio.Queue, state: AppState, state_queue: 
 
 async def main_async(frame_queue: Queue, embedding_mp_queue: Queue):
     state         = AppState()
-    asyncio_embed = asyncio.Queue(maxsize=2)
+    asyncio_embed = asyncio.Queue(maxsize=1)
     state_queue   = Queue(maxsize=2)
 
     loop = asyncio.get_event_loop()

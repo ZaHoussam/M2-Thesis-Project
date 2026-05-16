@@ -1,13 +1,10 @@
-# ================================================================
-#  main.py — FastAPI application entry point
-# ================================================================
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
 from config import settings
 from db.session import engine
-from routers import enroll, verify
+from routers import enroll, verify, logs, users
 
 app = FastAPI(
     title       = "Lab Access Control System",
@@ -24,11 +21,12 @@ app.add_middleware(
 
 app.include_router(enroll.router)
 app.include_router(verify.router)
+app.include_router(logs.router)
+app.include_router(users.router)        
 
 
 @app.on_event("startup")
 async def startup():
-    """Warm up DB connection pool on startup."""
     try:
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))

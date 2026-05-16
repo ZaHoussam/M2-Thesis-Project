@@ -1,11 +1,10 @@
 # ================================================================
 #  routers/verify.py — WebSocket /ws/verify
-#  Binary ALLOW / DENY — no MFA zone
+#  Binary ALLOW / DENY — with latency measurement
 # ================================================================
-from db import session
 import json
 import time
-
+from routers.logs import broadcast_log_event
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
@@ -18,19 +17,6 @@ router = APIRouter(tags=["Verification"])
 
 @router.websocket("/ws/verify")
 async def ws_verify(websocket: WebSocket):
-    """
-    WebSocket endpoint for live face authentication.
-
-    Client sends:
-        {"embedding": [512 floats], "lab_id": 1}
-
-    Server responds:
-        {"decision": "ALLOW" | "DENY",
-         "similarity_score": 0.91,
-         "user_id": 3,
-         "margin": 0.21,
-         "message": "..."}
-    """
     await websocket.accept()
 
     try:
@@ -61,29 +47,29 @@ async def ws_verify(websocket: WebSocket):
                 )
                 candidates = [
                     {
-                        "user_id":     r.user_id,
-                        "embedding":   r.embedding,
+                        "user_id":   r.user_id,
+                        "embedding": r.embedding,
                     }
                     for r in rows
                 ]
 
-                # Match — with latency measurement
-    
-                t_start = time.perf_counter()
-                result  = find_best_match(embedding, candidates)
-                latency_ms = round((time.perf_counter() - t_start) * 1000, 2)
+                # ── Measure matching latency ──────────────────
+                t_start    = time.perf_counter()
+                result     = find_best_match(embedding, candidates)
+                latency_ms = round((time.perf_counter() - t_start) * 1000, 3)
 
-                # Log — add latency_ms to response
+                # ── Log with latency ──────────────────────────
                 log = AccessLog(
                     user_id          = result.user_id,
                     lab_id           = lab_id,
                     outcome          = result.decision,
                     similarity_score = result.similarity_score,
+                    latency_ms       = latency_ms,
                 )
                 session.add(log)
 
             messages = {
-                "ALLOW": f"Access granted. Score: {result.similarity_score} margin: {result.margin}",
+                "ALLOW": f"Access granted. Score: {result.similarity_score}",
                 "DENY":  f"Access denied.  Score: {result.similarity_score}",
             }
 
@@ -95,6 +81,24 @@ async def ws_verify(websocket: WebSocket):
                 "latency_ms":       latency_ms,
                 "message":          messages[result.decision],
             }))
+
+            # Print to server terminal for monitoring
+            print(
+                f"[AUTH] {result.decision:<5} "
+                f"score={result.similarity_score:.4f} "
+                f"margin={result.margin:.4f} "
+                f"latency={latency_ms:.1f}ms"
+            )
+            # Broadcast to dashboard live feed
+            await broadcast_log_event({
+                "id":               log.id if hasattr(log, 'id') else None,
+                "outcome":          result.decision,
+                "similarity_score": result.similarity_score,
+                "latency_ms":       latency_ms,
+                "user_id":          result.user_id,
+                "lab_id":           lab_id,
+                "created_at":       __import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),
+            })
 
     except WebSocketDisconnect:
         pass

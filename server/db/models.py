@@ -75,4 +75,5 @@ class AccessLog(Base):
     lab_id:           Mapped[int]      = mapped_column(ForeignKey("labs.id",  ondelete="CASCADE"))
     outcome:          Mapped[str]      = mapped_column(String(20), nullable=False)
     similarity_score: Mapped[float]    = mapped_column(Float, nullable=True)
+    latency_ms:       Mapped[float]    = mapped_column(Float, nullable=True)
     created_at:       Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

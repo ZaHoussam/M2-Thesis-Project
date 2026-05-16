@@ -45,6 +45,7 @@ CREATE TABLE access_logs (
     lab_id           INTEGER     NOT NULL REFERENCES labs(id) ON DELETE CASCADE,
     outcome          VARCHAR(20) NOT NULL,
     similarity_score FLOAT8,
+    latency_ms       FLOAT8,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT chk_outcome CHECK (outcome IN ('ALLOW', 'DENY'))
