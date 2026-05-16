@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from config import settings
 from db.session import engine
-from routers import enroll, verify, logs, users
+from routers import enroll, verify, logs, users, alerts
 
 app = FastAPI(
     title       = "Lab Access Control System",
@@ -23,7 +23,7 @@ app.include_router(enroll.router)
 app.include_router(verify.router)
 app.include_router(logs.router)
 app.include_router(users.router)        
-
+app.include_router(alerts.router)
 
 @app.on_event("startup")
 async def startup():

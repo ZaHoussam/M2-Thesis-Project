@@ -51,3 +51,13 @@ export interface ScoreBin {
   range: string;
   count: number;
 }
+
+export interface AlertEntry {
+  id: number;
+  lab_id: number;
+  alert_type: "CONSECUTIVE_DENY" | "HIGH_VOLUME" | "SUSPICIOUS_MOVEMENT";
+  description: string;
+  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  is_resolved: boolean;
+  created_at: string;
+}

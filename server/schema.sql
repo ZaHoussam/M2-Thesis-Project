@@ -58,3 +58,24 @@ CREATE INDEX idx_access_logs_created ON access_logs(created_at DESC);
 -- Seed
 INSERT INTO labs (name, location)
 VALUES ('Lab A - Main Entrance', 'Building 1, Floor 1');
+
+CREATE TABLE security_alerts (
+    id          SERIAL          PRIMARY KEY,
+    lab_id      INTEGER         NOT NULL REFERENCES labs(id) ON DELETE CASCADE,
+    alert_type  VARCHAR(50)     NOT NULL,
+    description TEXT            NOT NULL,
+    severity    VARCHAR(20)     NOT NULL DEFAULT 'HIGH',
+    is_resolved BOOLEAN         NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT chk_alert_type CHECK (
+        alert_type IN ('CONSECUTIVE_DENY','HIGH_VOLUME','SUSPICIOUS_MOVEMENT')
+    ),
+    CONSTRAINT chk_severity CHECK (
+        severity IN ('LOW','MEDIUM','HIGH','CRITICAL')
+    )
+);
+
+CREATE INDEX idx_alerts_lab_id    ON security_alerts(lab_id);
+CREATE INDEX idx_alerts_created   ON security_alerts(created_at DESC);
+CREATE INDEX idx_alerts_resolved  ON security_alerts(is_resolved);

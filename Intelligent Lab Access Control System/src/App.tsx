@@ -5,9 +5,10 @@ import { useState } from "react";
 import Users from "./components/Users";
 import LiveFeed from "./components/LiveFeed";
 import Statistics from "./components/Statistics";
+import Alerts from "./components/Alerts";
 import "./App.css";
 
-type Tab = "users" | "live" | "stats";
+type Tab = "users" | "live" | "stats" | "alerts";
 
 interface TabDef {
   id: Tab;
@@ -18,6 +19,7 @@ const TABS: TabDef[] = [
   { id: "users", label: "👥 Users" },
   { id: "live", label: "📡 Live Feed" },
   { id: "stats", label: "📊 Statistics" },
+  { id: "alerts", label: "🚨 Security Alerts" },
 ];
 
 export default function App(): JSX.Element {
@@ -52,6 +54,7 @@ export default function App(): JSX.Element {
         {tab === "users" && <Users />}
         {tab === "live" && <LiveFeed />}
         {tab === "stats" && <Statistics />}
+        {tab === "alerts" && <Alerts />}
       </main>
     </div>
   );

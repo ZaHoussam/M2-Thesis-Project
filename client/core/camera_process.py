@@ -52,6 +52,7 @@ def camera_worker(
                             embedding_queue.put_nowait({
                                 "embedding": aggregator.get_aggregate(),
                                 "bbox":      bbox,
+                                "det_score": float(result["det_score"]),
                             })
                         except Exception:
                             pass

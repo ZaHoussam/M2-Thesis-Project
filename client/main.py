@@ -149,6 +149,7 @@ async def auth_task(asyncio_embed: asyncio.Queue, state: AppState, state_queue: 
                         await ws.send(json.dumps({
                             "embedding": embedding,
                             "lab_id":    1,
+                            "det_score": data.get("det_score"),
                         }))
 
                         response = json.loads(await ws.recv())

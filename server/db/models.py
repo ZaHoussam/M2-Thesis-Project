@@ -58,7 +58,6 @@ class FaceEmbedding(Base):
 
     user: Mapped["User"] = relationship(back_populates="embeddings")
 
-
 # ── Access Logs ───────────────────────────────────────────────────
 class AccessLog(Base):
     __tablename__  = "access_logs"
@@ -77,3 +76,25 @@ class AccessLog(Base):
     similarity_score: Mapped[float]    = mapped_column(Float, nullable=True)
     latency_ms:       Mapped[float]    = mapped_column(Float, nullable=True)
     created_at:       Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+# ── Security Alerts ───────────────────────────────────────────────
+class SecurityAlert(Base):
+    __tablename__  = "security_alerts"
+    __table_args__ = (
+        CheckConstraint(
+            "alert_type IN ('CONSECUTIVE_DENY','HIGH_VOLUME','SUSPICIOUS_MOVEMENT')",
+            name = "chk_alert_type"
+        ),
+        CheckConstraint(
+            "severity IN ('LOW','MEDIUM','HIGH','CRITICAL')",
+            name = "chk_severity"
+        ),
+    )
+
+    id:          Mapped[int]      = mapped_column(Integer, primary_key=True)
+    lab_id:      Mapped[int]      = mapped_column(ForeignKey("labs.id", ondelete="CASCADE"))
+    alert_type:  Mapped[str]      = mapped_column(String(50),  nullable=False)
+    description: Mapped[str]      = mapped_column(String(500), nullable=False)
+    severity:    Mapped[str]      = mapped_column(String(20),  default="HIGH")
+    is_resolved: Mapped[bool]     = mapped_column(Boolean,     default=False)
+    created_at:  Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
