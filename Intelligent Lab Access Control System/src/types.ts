@@ -26,6 +26,8 @@ export interface LogEntry {
 }
 
 export interface LogStats {
+  deny_rate: number;
+  total_authentications: string | number;
   total_attempts: number;
   total_allow: number;
   total_deny: number;
@@ -38,6 +40,7 @@ export interface LogStats {
 }
 
 export interface LiveEvent {
+  user_name: string;
   id: number | null;
   outcome: "ALLOW" | "DENY";
   similarity_score: number | null;
@@ -61,3 +64,5 @@ export interface AlertEntry {
   is_resolved: boolean;
   created_at: string;
 }
+
+export type Tab = "users" | "live" | "stats" | "alerts";

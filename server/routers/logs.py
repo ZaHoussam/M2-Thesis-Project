@@ -210,4 +210,4 @@ async def broadcast_log_event(event: dict):
             await client.send_text(json.dumps(event))
         except Exception:
             dead.add(client)
-    dashboard_clients -= dead
+    dashboard_clients.difference_update(dead)

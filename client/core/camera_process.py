@@ -1,6 +1,5 @@
 # ================================================================
-#  core/camera_process.py — Camera + InsightFace worker process
-#  No display here — sends frames and embeddings to main process
+#  core/camera_process.py — Camera + InsightFace + AntiSpoof
 # ================================================================
 import cv2
 import numpy as np
@@ -10,24 +9,22 @@ from core.camera           import Camera
 from core.embedder         import FacePipeline
 from core.detector         import is_sharp
 from core.frame_aggregator import FrameAggregator
+from core.antispoof        import AntiSpoofDetector   # ← new
 
 N_FRAMES = 3
 
 
 def camera_worker(
-    embedding_queue: Queue,   # OUT — stable embeddings → main
-    frame_queue:     Queue,   # OUT — raw frames → main for display
+    embedding_queue: Queue,
+    frame_queue:     Queue,
     camera_index:    int = 0,
 ):
-    """
-    Runs in its own process.
-    Tight synchronous loop — no asyncio, no display.
-    """
     print("[CAM PROCESS] Loading models...")
-    pipeline   = FacePipeline()
-    camera     = Camera()
-    aggregator = FrameAggregator(n_frames=N_FRAMES)
-    print("[CAM PROCESS] Ready — reading frames.")
+    pipeline    = FacePipeline()
+    antispoof   = AntiSpoofDetector()                 # ← new
+    camera      = Camera()
+    aggregator  = FrameAggregator(n_frames=N_FRAMES)
+    print("[CAM PROCESS] Ready.")
 
     while True:
         frame = camera.read_frame()
@@ -36,31 +33,58 @@ def camera_worker(
 
         bbox      = None
         progress  = 0
+        is_spoof  = False                             # ← new
 
-        # Sharpness gate
         if is_sharp(frame):
             result = pipeline.process(frame)
 
             if result is not None:
                 bbox = result["bbox"]
-                aggregator.push(result["embedding"])
-                progress = aggregator.progress
+                crop = frame[
+                    bbox[1]:bbox[3],
+                    bbox[0]:bbox[2]
+                ]
 
-                if aggregator.is_ready():
+                # ── Anti-spoof check ──────────────────────────
+                spoof_result = antispoof.predict(crop)
+                is_spoof     = not spoof_result["is_real"]
+
+                if is_spoof:
+                    # Send spoof signal — do NOT embed
                     if embedding_queue.empty():
                         try:
                             embedding_queue.put_nowait({
-                                "embedding": aggregator.get_aggregate(),
-                                "bbox":      bbox,
-                                "det_score": float(result["det_score"]),
+                                "embedding":  None,
+                                "bbox":       bbox,
+                                "det_score":  float(result["det_score"]),
+                                "is_spoof":   True,
+                                "spoof_prob": spoof_result["spoof_prob"],
+                                "real_prob":  spoof_result["real_prob"],
                             })
                         except Exception:
                             pass
+                else:
+                    # Real face — aggregate and embed
+                    aggregator.push(result["embedding"])
+                    progress = aggregator.progress
+
+                    if aggregator.is_ready():
+                        if embedding_queue.empty():
+                            try:
+                                embedding_queue.put_nowait({
+                                    "embedding":  aggregator.get_aggregate(),
+                                    "bbox":       bbox,
+                                    "det_score":  float(result["det_score"]),
+                                    "is_spoof":   False,
+                                    "spoof_prob": spoof_result["spoof_prob"],
+                                    "real_prob":  spoof_result["real_prob"],
+                                })
+                            except Exception:
+                                pass
             else:
                 aggregator.clear()
 
-        # Send frame + metadata to main process for display
-        # Resize frame before sending to reduce Queue bandwidth
+        # Send frame for display
         small = cv2.resize(frame, (640, 480))
         try:
             if frame_queue.empty():
@@ -68,6 +92,7 @@ def camera_worker(
                     "frame":    small,
                     "bbox":     bbox,
                     "progress": progress,
+                    "is_spoof": is_spoof, 
                 })
         except Exception:
             pass

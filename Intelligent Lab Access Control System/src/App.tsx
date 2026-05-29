@@ -1,56 +1,40 @@
-// ================================================================
-//  App.tsx — root component with tab navigation
-// ================================================================
 import { useState } from "react";
+import Login from "./pages/Login";
+import Sidebar from "./components/Sidebar";
 import Users from "./components/Users";
 import LiveFeed from "./components/LiveFeed";
 import Statistics from "./components/Statistics";
 import Alerts from "./components/Alerts";
-import "./App.css";
-
-type Tab = "users" | "live" | "stats" | "alerts";
-
-interface TabDef {
-  id: Tab;
-  label: string;
-}
-
-const TABS: TabDef[] = [
-  { id: "users", label: "👥 Users" },
-  { id: "live", label: "📡 Live Feed" },
-  { id: "stats", label: "📊 Statistics" },
-  { id: "alerts", label: "🚨 Security Alerts" },
-];
+import type { Tab } from "./types";
 
 export default function App(): JSX.Element {
   const [tab, setTab] = useState<Tab>("users");
+  const [loggedIn, setLoggedIn] = useState<boolean>(
+    !!localStorage.getItem("admin_token"),
+  );
+
+  const handleLogout = (): void => {
+    localStorage.removeItem("admin_token");
+    setLoggedIn(false);
+  };
+
+  if (!loggedIn) {
+    // return <Login onLogin={() => setLoggedIn(true)} />;
+  }
 
   return (
-    <div className="app">
-      <header className="header">
-        <div className="header-left">
-          <div className="logo-dot" />
-          <span className="header-title">Lab Access Control</span>
-          <span className="header-version">Admin Dashboard</span>
-        </div>
-        <div className="header-right">
-          <span className="live-indicator">● LIVE</span>
-        </div>
-      </header>
+    <div className="bg-[#0F0F0F] text-[#e0e8f0] h-screen overflow-hidden flex font-body dark">
+      {/* Sidebar */}
+      <Sidebar tab={tab} setTab={setTab} onLogout={handleLogout} />
 
-      <nav className="nav">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={`nav-btn ${tab === t.id ? "active" : ""}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-
-      <main className="main">
+      {/* Main content */}
+      <main
+        className="
+        flex-1 md:ml-64
+        overflow-auto custom-scrollbar
+        p-6
+      "
+      >
         {tab === "users" && <Users />}
         {tab === "live" && <LiveFeed />}
         {tab === "stats" && <Statistics />}

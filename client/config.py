@@ -16,6 +16,8 @@ class ClientSettings(BaseSettings):
     lab_id:          int      = 1
     camera_index:    int      = 0
     min_face_size:   int      = 80
+    antispoof_model:    str = "../models/silent_face.onnx"  
+    antispoof_threshold: float = 0.80
 
 
 settings = ClientSettings()
