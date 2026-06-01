@@ -10,6 +10,26 @@ import { TbCancel } from "react-icons/tb";
 import { MdOutlineTimer, MdDonutLarge } from "react-icons/md";
 import { BsPersonFillCheck } from "react-icons/bs";
 import { IoAnalyticsSharp, IoFingerPrintSharp } from "react-icons/io5";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+} from "chart.js";
+
+import { Doughnut, Bar } from "react-chartjs-2";
+
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+);
 
 const API = "http://localhost:8000";
 
@@ -61,71 +81,53 @@ function DonutChart({
   total,
   allow,
   deny,
-  allowRate,
 }: {
   total: number;
   allow: number;
   deny: number;
-  allowRate: number;
 }): JSX.Element {
-  const allowPct = Math.round(allowRate * 100);
-  const denyPct = 100 - allowPct;
+  const data = {
+    labels: ["Allow", "Deny"],
+    datasets: [
+      {
+        data: [allow, deny],
+        backgroundColor: ["#34d399", "#ff6b6b"],
+        borderWidth: 0,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    cutout: "70%",
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: "#a0b4c4",
+        },
+      },
+    },
+  };
 
   return (
-    <div className="glass-panel rounded-xl p-6 flex flex-col">
+    <div className="glass-panel rounded-xl p-6">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-bold text-[#e0e8f0]">Distribution</h3>
-        <span className="material-symbols-outlined text-[#a0b4c4]">
-          {<MdDonutLarge size={30} />}
+        <span className="text-[#a0b4c4]">
+          <MdDonutLarge size={30} />
         </span>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center relative min-h-[250px]">
-        {/* CSS donut */}
-        <div
-          className="w-48 h-48 rounded-full relative flex items-center justify-center"
-          style={{
-            background: `conic-gradient(
-              from 0deg,
-              #34d399 0% ${allowPct}%,
-              #ff6b6b ${allowPct}% 100%
-            )`,
-            padding: "20px",
-          }}
-        >
-          {/* Inner hole */}
-          <div
-            className="
-              w-full h-full rounded-full
-              flex flex-col items-center justify-center
-              backdrop-blur-sm border border-primary/10
-            "
-            style={{
-              background: "rgba(17, 24, 40, 0.8)",
-              boxShadow: "inset 0 2px 8px rgba(0,0,0,0.4)",
-            }}
-          >
-            <span className="text-2xl font-bold text-[#e0e8f0]">{total}</span>
-            <span className="text-xs text-[#a0b4c4]">Total</span>
-          </div>
-        </div>
-      </div>
+      <div className="relative h-[300px]">
+        <Doughnut data={data} options={options} width={300} height={300} />
 
-      {/* Legend */}
-      <div className="mt-6 flex justify-center gap-6 text-sm">
-        <div className="flex items-center gap-2">
-          <span
-            className="w-3 h-3 rounded-full bg-emerald-400"
-            style={{ boxShadow: "0 0 10px rgba(52,211,153,0.5)" }}
-          />
-          <span className="text-[#a0b4c4]">Allow ({allowPct}%)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span
-            className="w-3 h-3 rounded-full bg-[#ff6b6b]"
-            style={{ boxShadow: "0 0 10px rgba(255,107,107,0.5)" }}
-          />
-          <span className="text-[#a0b4c4]">Deny ({denyPct}%)</span>
+        <div
+          className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none"
+          style={{ top: "53%" }}
+        >
+          <span className="text-4xl font-bold text-[#e0e8f0]">{total}</span>
+          <span className="text-xl text-[#a0b4c4]">Total</span>
         </div>
       </div>
     </div>
@@ -134,134 +136,85 @@ function DonutChart({
 
 // ── Bar chart ─────────────────────────────────────────────────────
 function ScoreBarChart({ logs }: { logs: LogEntry[] }): JSX.Element {
-  // Build bins 0.0–1.0 in 0.1 steps
   const bins = Array.from({ length: 10 }, (_, i) => {
     const lo = i / 10;
     const hi = (i + 1) / 10;
+
     const count = logs.filter((l) => {
       const s = l.similarity_score;
       return s !== null && s >= lo && (i === 9 ? s <= hi : s < hi);
     }).length;
-    return { lo: lo.toFixed(1), hi: hi.toFixed(1), count };
+
+    return {
+      label: `${lo.toFixed(1)}-${hi.toFixed(1)}`,
+      count,
+    };
   });
 
-  const maxCount = Math.max(...bins.map((b) => b.count), 1);
+  const data = {
+    labels: bins.map((b) => b.label),
+    datasets: [
+      {
+        label: "Events",
+        data: bins.map((b) => b.count),
+        backgroundColor: bins.map((_, idx) => {
+          const v = idx / 10;
 
-  // Color by range
-  const barColor = (lo: string): string => {
-    const v = parseFloat(lo);
-    if (v < 0.4) return "bg-[#ff6b6b]/80 hover:bg-[#ff6b6b]";
-    if (v < 0.55) return "bg-primary/40  hover:bg-primary/60";
-    return "bg-emerald-400/80 hover:bg-emerald-400";
+          if (v < 0.4) return "#ff6b6b";
+          if (v < 0.55) return "#60a5fa";
+          return "#34d399";
+        }),
+        borderRadius: 6,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+
+    plugins: {
+      legend: {
+        labels: {
+          color: "#e0e8f0",
+        },
+      },
+    },
+
+    scales: {
+      x: {
+        ticks: {
+          color: "#a0b4c4",
+        },
+        grid: {
+          color: "rgba(255,255,255,0.05)",
+        },
+      },
+
+      y: {
+        beginAtZero: true,
+
+        ticks: {
+          color: "#a0b4c4",
+        },
+
+        grid: {
+          color: "rgba(255,255,255,0.05)",
+        },
+      },
+    },
   };
 
   return (
-    <div className="glass-panel rounded-xl p-6 flex flex-col lg:col-span-2">
+    <div className="glass-panel rounded-xl p-6 lg:col-span-2">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-bold text-[#e0e8f0]">
-          Score Distribution (0.0 – 1.0)
+          Score Distribution (0.0 - 1.0)
         </h3>
-        <div className="flex gap-2">
-          <button
-            className="
-            px-3 py-1 rounded
-            bg-primary/10 text-primary
-            text-xs font-semibold border border-primary/20
-          "
-          >
-            All
-          </button>
-        </div>
       </div>
 
-      <div
-        className="
-          flex-1 flex items-end justify-between
-          gap-1 mt-4 pt-4
-          border-t border-primary/5
-          relative min-h-[250px]
-        "
-      >
-        {/* Y-axis grid lines */}
-        <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-8">
-          {[100, 75, 50, 25].map((v) => (
-            <div key={v} className="w-full border-t border-primary/5" />
-          ))}
-        </div>
-
-        {/* Y-axis labels */}
-        <div
-          className="
-          absolute left-0 top-0 bottom-8
-          flex flex-col justify-between
-          text-[10px] text-[#a0b4c4]/50 -ml-1
-        "
-        >
-          {[
-            maxCount,
-            Math.round(maxCount * 0.75),
-            Math.round(maxCount * 0.5),
-            Math.round(maxCount * 0.25),
-          ].map((v) => (
-            <span key={v}>{v}</span>
-          ))}
-        </div>
-
-        {/* Bars */}
-        <div
-          className="
-          w-full h-full flex items-end justify-between
-          px-4 pb-8 relative z-10 gap-1 sm:gap-2
-        "
-        >
-          {bins.map((bin) => {
-            const heightPct =
-              maxCount > 0
-                ? Math.max((bin.count / maxCount) * 100, bin.count > 0 ? 4 : 0)
-                : 0;
-            return (
-              <div
-                key={bin.lo}
-                className="w-full flex flex-col items-center gap-1"
-                title={`${bin.lo}–${bin.hi}: ${bin.count} events`}
-              >
-                <div
-                  className={`
-                    w-full rounded-t-sm transition-all
-                    ${barColor(bin.lo)}
-                  `}
-                  style={{ height: `${heightPct}%` }}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* X-axis labels */}
-        <div
-          className="
-          absolute bottom-0 left-4 right-4
-          flex justify-between
-          text-[10px] text-[#a0b4c4] font-mono
-          mt-2 pt-2 border-t border-primary/20
-        "
-        >
-          {[
-            "0.0",
-            "0.1",
-            "0.2",
-            "0.3",
-            "0.4",
-            "0.5",
-            "0.6",
-            "0.7",
-            "0.8",
-            "0.9",
-            "1.0",
-          ].map((v) => (
-            <span key={v}>{v}</span>
-          ))}
-        </div>
+      <div className="h-[320px]">
+        <Bar data={data} options={options} />
       </div>
     </div>
   );
@@ -334,6 +287,7 @@ export default function Statistics(): JSX.Element {
           axios.get<LogStats>(`${API}/logs/stats`),
           axios.get<LogEntry[]>(`${API}/logs?limit=500`),
         ]);
+
         setStats(s.data);
         setLogs(l.data);
       } catch (e) {
@@ -384,7 +338,7 @@ export default function Statistics(): JSX.Element {
         <MetricCard
           icon={<IoFingerPrintSharp size={30} />}
           label="Total Attempts"
-          value={stats.total_authentications}
+          value={stats.total_attempts}
           glowColor="rgba(125,211,252,0.15)"
         />
         <MetricCard
@@ -398,7 +352,11 @@ export default function Statistics(): JSX.Element {
           icon={<TbCancel size={30} />}
           label="Denied"
           value={stats.total_deny}
-          sub={`${((stats.deny_rate ?? 0) * 100).toFixed(1)}%`}
+          sub={`${(
+            (stats.total_attempts > 0
+              ? stats.total_deny / stats.total_attempts
+              : 0) * 100
+          ).toFixed(1)}%`}
           glowColor="rgba(255,107,107,0.15)"
         />
         <MetricCard
@@ -432,16 +390,12 @@ export default function Statistics(): JSX.Element {
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <DonutChart
-          total={Number(stats.total_authentications) || 0}
+          total={stats.total_attempts}
           allow={stats.total_allow}
           deny={stats.total_deny}
-          allowRate={stats.allow_rate ?? 0}
         />
         <ScoreBarChart logs={logs} />
       </div>
-
-      {/* Performance table */}
-      {/* <PerfTable stats={stats} /> */}
     </div>
   );
 }

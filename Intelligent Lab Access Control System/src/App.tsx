@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import Login from "./pages/Login";
 import Sidebar from "./components/Sidebar";
 import Users from "./components/Users";
@@ -19,7 +19,7 @@ export default function App(): JSX.Element {
   };
 
   if (!loggedIn) {
-    // return <Login onLogin={() => setLoggedIn(true)} />;
+    return <Login onLogin={() => setLoggedIn(true)} />;
   }
 
   return (
