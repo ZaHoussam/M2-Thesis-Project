@@ -10,17 +10,50 @@ import asyncio
 import json
 from datetime import datetime
 
-from fastapi  import APIRouter, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select, desc
 
 from db.session import get_session
-from db.models  import SecurityAlert
+from db.models import SecurityAlert
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
-# Connected dashboard clients for live alert feed
-alert_clients: set[WebSocket] = set()
+
+# ── Connection Manager for WebSockets ─────────────────────────────
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: set[WebSocket] = set()
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.add(websocket)
+        print(f"[ALERTS] Dashboard connected. Total clients: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.discard(websocket)
+        print(f"[ALERTS] Dashboard disconnected. Total clients: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        if not self.active_connections:
+            return
+
+        # Optimize: Serialize once out of the loop instead of per-client
+        payload = json.dumps(message, default=str)
+        
+        # Broadcast concurrently so a slow client network doesn't halt the queue
+        tasks = [client.send_text(payload) for client in self.active_connections]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Clean up any dead connections discovered during broadcast
+        dead_clients = [
+            client for client, res in zip(self.active_connections, results) 
+            if isinstance(res, Exception)
+        ]
+        for client in dead_clients:
+            self.disconnect(client)
+
+manager = ConnectionManager()
 
 
 # ── Response schema ───────────────────────────────────────────────
@@ -33,8 +66,8 @@ class AlertEntry(BaseModel):
     is_resolved: bool
     created_at:  datetime
 
-    class Config:
-        from_attributes = True
+    # Modern Pydantic V2 configuration syntax
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ── GET /alerts ───────────────────────────────────────────────────
@@ -70,10 +103,12 @@ async def resolve_alert(alert_id: int):
     async with get_session() as session:
         alert = await session.get(SecurityAlert, alert_id)
         if not alert:
-            from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Alert not found.")
+        
         alert.is_resolved = True
         session.add(alert)
+        await session.commit()  # Fixed: Added commit to persist changes
+        
     return {"alert_id": alert_id, "message": "Alert resolved."}
 
 
@@ -81,24 +116,16 @@ async def resolve_alert(alert_id: int):
 @router.websocket("/ws")
 async def ws_alerts(websocket: WebSocket):
     """Live alert feed — pushes new alerts to dashboard instantly."""
-    await websocket.accept()
-    alert_clients.add(websocket)
-    print(f"[ALERTS] Dashboard connected. Total: {len(alert_clients)}")
+    await manager.connect(websocket)
     try:
         while True:
-            await asyncio.sleep(30)
+            # Efficiently waits for incoming traffic or client-side disconnects
+            await websocket.receive_text()
     except WebSocketDisconnect:
-        alert_clients.discard(websocket)
-        print(f"[ALERTS] Dashboard disconnected. Total: {len(alert_clients)}")
+        manager.disconnect(websocket)
 
 
 # ── Broadcast helper ──────────────────────────────────────────────
 async def broadcast_alert(alert_data: dict) -> None:
     """Called from verify.py when an alert fires."""
-    dead = set()
-    for client in alert_clients:
-        try:
-            await client.send_text(json.dumps(alert_data))
-        except Exception:
-            dead.add(client)
-    alert_clients -= dead
+    await manager.broadcast(alert_data)
