@@ -4,11 +4,16 @@
 // ================================================================
 import { useEffect, useRef, useState, type JSX } from "react";
 import type { LiveEvent } from "../types";
-import { FaRegPauseCircle, FaFileAlt, FaRegCheckCircle } from "react-icons/fa";
-import { FaPlay } from "react-icons/fa6";
-import { MdCleaningServices, MdVerified } from "react-icons/md";
-import { TbCancel } from "react-icons/tb";
-import { IoWarningOutline } from "react-icons/io5";
+import {
+  TriangleAlert,
+  ReceiptText,
+  CircleCheck,
+  Play,
+  Pause,
+  CircleX,
+  BrushCleaning,
+} from "lucide-react";
+import { MdOutlineSensorsOff } from "react-icons/md";
 
 const WS_URL = "ws://localhost:8000/logs/ws";
 
@@ -74,11 +79,12 @@ function getOutcomeBadge(e: LiveEvent): { label: string; cls: string } {
 }
 
 function getIcon(e: LiveEvent): { icon: JSX.Element; color: string } {
-  if (e.outcome === "DENY") return { icon: <TbCancel size={16} />, color: "text-[#ff6b6b]" };
+  if (e.outcome === "DENY")
+    return { icon: <CircleX size={16} />, color: "text-[#ff6b6b]" };
   const score = e.similarity_score ?? 0;
   if (score < SCORE_REVIEW_THRESHOLD)
-    return { icon: <IoWarningOutline size={16} />, color: "text-amber-400" };
-  return { icon: <FaRegCheckCircle size={16} />, color: "text-emerald-400" };
+    return { icon: <TriangleAlert size={16} />, color: "text-amber-400" };
+  return { icon: <CircleCheck size={16} />, color: "text-emerald-400" };
 }
 
 function formatTime(iso: string): string {
@@ -207,6 +213,7 @@ export default function LiveFeed(): JSX.Element {
             className={`
               flex items-center gap-2 px-3 py-1.5 rounded-lg
               border text-xs font-semibold transition-all
+              cursor-pointer
               ${
                 paused
                   ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
@@ -215,7 +222,7 @@ export default function LiveFeed(): JSX.Element {
             `}
           >
             <span className="material-symbols-outlined text-[16px]">
-              {paused ? <FaPlay size={16} /> : <FaRegPauseCircle size={16} />}
+              {paused ? <Play size={16} /> : <Pause size={16} />}
             </span>
             {paused ? "Resume" : "Pause"}
           </button>
@@ -228,9 +235,10 @@ export default function LiveFeed(): JSX.Element {
               border border-[#2a3a48] text-[#a0b4c4]
               hover:text-[#e0e8f0] text-xs font-semibold
               transition-all
+              cursor-pointer
             "
           >
-            <MdCleaningServices size={16} />
+            <BrushCleaning size={16} />
             Clear
           </button>
         </div>
@@ -242,39 +250,54 @@ export default function LiveFeed(): JSX.Element {
           {
             label: "Total Events",
             value: events.length,
-            icon: <FaFileAlt size={30} />,
-            color: "text-primary",
+            icon: <ReceiptText size={20} />,
+            color: "#7dd3fc",
+            borderColor: "#7dd3fc14",
           },
           {
             label: "Granted",
             value: granted,
-            icon: <MdVerified size={30} />,
-            color: "text-emerald-400",
+            icon: <CircleCheck size={20} />,
+            color: "#34d399",
+            borderColor: "#34d39926",
           },
           {
             label: "Denied",
             value: denied,
-            icon: <TbCancel size={30} />,
-            color: "text-[#ff6b6b]",
+            icon: <CircleX size={20} />,
+            color: "#ff6b6b",
+            borderColor: "#ff6b6b26",
           },
           {
             label: "Review",
             value: review,
-            icon: <IoWarningOutline size={30} />,
-            color: "text-amber-400",
+            icon: <TriangleAlert size={20} />,
+            color: "#fbbf24",
+            borderColor: "#fbbf2426",
           },
         ].map((s) => (
           <div
             key={s.label}
-            className="glass-panel rounded-lg p-4 flex items-center gap-3"
+            className="glass-panel rounded-lg p-4 flex items-center gap-3 bg-[#0f152480] border "
+            style={{
+              borderColor: s.borderColor,
+            }}
           >
             <span
-              className={`material-symbols-outlined ${s.color} text-[22px]`}
+              className={`text-[22px]`}
+              style={{
+                color: s.color,
+                padding: "4px",
+                borderRadius: "8px",
+              }}
             >
               {s.icon}
             </span>
-            <div>
-              <p className="text-xl font-bold text-[#e0e8f0] font-mono">
+            <div className="flex flex-col gap-2">
+              <p
+                className="text-4xl font-bold text-[#e0e8f0] font-mono"
+                style={{ color: s.color }}
+              >
                 {s.value.toString().padStart(2, "0")}
               </p>
               <p className="text-xs text-[#a0b4c4] uppercase tracking-wider font-semibold">
@@ -313,9 +336,7 @@ export default function LiveFeed(): JSX.Element {
         >
           {events.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-3 text-[#a0b4c4]">
-              <span className="material-symbols-outlined text-4xl capitalize">
-                sensors
-              </span>
+              <MdOutlineSensorsOff className="text-[150px]" />
               <p className="text-sm">
                 {paused
                   ? "Feed paused — click Resume to continue"

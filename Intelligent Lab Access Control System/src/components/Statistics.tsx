@@ -5,11 +5,15 @@
 import { useEffect, useState, type JSX } from "react";
 import axios from "axios";
 import type { LogEntry, LogStats } from "../types";
-import { FaRegCheckCircle } from "react-icons/fa";
-import { TbCancel } from "react-icons/tb";
-import { MdOutlineTimer, MdDonutLarge } from "react-icons/md";
-import { BsPersonFillCheck } from "react-icons/bs";
-import { IoAnalyticsSharp, IoFingerPrintSharp } from "react-icons/io5";
+import { IoFingerPrintSharp } from "react-icons/io5";
+import {
+  CircleCheck,
+  ChartPie,
+  Timer,
+  CircleX,
+  UserCheck,
+  SquareDashedKanban,
+} from "lucide-react";
 import {
   Chart as ChartJS,
   ArcElement,
@@ -39,7 +43,9 @@ interface MetricCardProps {
   label: string;
   value: string | number;
   sub?: string;
+  iconColor?: string;
   glowColor?: string;
+  borderColor?: string;
 }
 
 function MetricCard({
@@ -47,19 +53,23 @@ function MetricCard({
   label,
   value,
   sub,
-  glowColor = "rgba(125,211,252,0.1)",
+  iconColor,
+  borderColor,
 }: MetricCardProps): JSX.Element {
   return (
-    <div className="glass-panel glass-panel-hover rounded-xl p-6 flex flex-col gap-3 transition-all cursor-default relative overflow-hidden">
+    <div
+      className="glass-panel glass-panel-hover rounded-xl p-6 flex flex-col bg-[#0f152480] gap-3 transition-all cursor-default relative select-none overflow-hidden border"
+      style={{
+        borderColor: borderColor,
+      }}
+    >
       {/* Background glow */}
-      <div
-        className="absolute inset-0 opacity-30 pointer-events-none"
-        style={{
-          background: `radial-gradient(circle at 0% 100%, ${glowColor} 0%, transparent 60%)`,
-        }}
-      />
+      <div className="absolute inset-0 opacity-30 pointer-events-none" />
       <div className="flex items-center gap-3 text-[#a0b4c4] relative z-10">
-        <span className="material-symbols-outlined text-primary/70 text-[20px]">
+        <span
+          className="material-symbols-outlined text-primary/70 text-[20px]"
+          style={{ color: iconColor }}
+        >
           {icon}
         </span>
         <h3 className="text-xs uppercase tracking-wider font-semibold">
@@ -67,7 +77,10 @@ function MetricCard({
         </h3>
       </div>
       <div className="relative z-10 flex items-baseline gap-2">
-        <span className="text-3xl font-bold text-[#e0e8f0] tracking-tight">
+        <span
+          className="text-4xl font-bold tracking-tight"
+          style={{ color: iconColor }}
+        >
           {value}
         </span>
         {sub && <span className="text-sm text-[#a0b4c4]">{sub}</span>}
@@ -115,7 +128,7 @@ function DonutChart({
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-bold text-[#e0e8f0]">Distribution</h3>
         <span className="text-[#a0b4c4]">
-          <MdDonutLarge size={30} />
+          <ChartPie size={30} />
         </span>
       </div>
 
@@ -220,60 +233,6 @@ function ScoreBarChart({ logs }: { logs: LogEntry[] }): JSX.Element {
   );
 }
 
-// ── Performance table ─────────────────────────────────────────────
-// function PerfTable({ stats }: { stats: LogStats }): JSX.Element {
-//   const rows = [
-//     {
-//       label: "Average Latency",
-//       value: `${stats.avg_latency_ms?.toFixed(2) ?? "—"} ms`,
-//     },
-//     {
-//       label: "Min Latency",
-//       value: `${stats.min_latency_ms?.toFixed(2) ?? "—"} ms`,
-//     },
-//     {
-//       label: "Max Latency",
-//       value: `${stats.max_latency_ms?.toFixed(2) ?? "—"} ms`,
-//     },
-//     {
-//       label: "Avg Score (ALLOW)",
-//       value: stats.avg_score_allow?.toFixed(4) ?? "—",
-//     },
-//     {
-//       label: "Avg Score (DENY)",
-//       value: stats.avg_score_deny?.toFixed(4) ?? "—",
-//     },
-//     {
-//       label: "Allow Rate",
-//       value: `${((stats.allow_rate ?? 0) * 100).toFixed(1)}%`,
-//     },
-//   ];
-
-//   return (
-//     <div className="glass-panel rounded-xl p-6">
-//       <div className="flex items-center gap-3 mb-6">
-//         <span className="material-symbols-outlined text-primary/70">speed</span>
-//         <h3 className="text-lg font-bold text-[#e0e8f0]">
-//           Performance Metrics
-//         </h3>
-//       </div>
-//       <div className="flex flex-col divide-y divide-[#2a3a48]/50">
-//         {rows.map((r) => (
-//           <div
-//             key={r.label}
-//             className="flex justify-between items-center py-3 text-sm"
-//           >
-//             <span className="text-[#a0b4c4]">{r.label}</span>
-//             <span className="font-mono font-semibold text-[#e0e8f0]">
-//               {r.value}
-//             </span>
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// }
-
 // ── Main component ────────────────────────────────────────────────
 export default function Statistics(): JSX.Element {
   const [stats, setStats] = useState<LogStats | null>(null);
@@ -302,9 +261,7 @@ export default function Statistics(): JSX.Element {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full gap-3 text-[#a0b4c4]">
-        <span className="material-symbols-outlined text-3xl animate-spin">
-          refresh
-        </span>
+        <span className="text-3xl animate-spin">refresh</span>
         Loading statistics...
       </div>
     );
@@ -313,9 +270,7 @@ export default function Statistics(): JSX.Element {
   if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-[#a0b4c4]">
-        <span className="material-symbols-outlined text-4xl">
-          bar_chart_off
-        </span>
+        <span className="text-4xl">bar_chart_off</span>
         <p className="text-sm">No data available yet.</p>
       </div>
     );
@@ -336,45 +291,52 @@ export default function Statistics(): JSX.Element {
       {/* Metric cards — 3 columns */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <MetricCard
-          icon={<IoFingerPrintSharp size={30} />}
+          icon={<IoFingerPrintSharp size={20} />}
           label="Total Attempts"
           value={stats.total_attempts}
-          glowColor="rgba(125,211,252,0.15)"
+          iconColor="#7dd3fc"
+          borderColor="#7dd3fc14"
         />
         <MetricCard
-          icon={<FaRegCheckCircle size={30} />}
+          icon={<CircleCheck size={20} />}
           label="Granted"
           value={stats.total_allow}
           sub={`${((stats.allow_rate ?? 0) * 100).toFixed(1)}%`}
-          glowColor="rgba(52,211,153,0.15)"
+          iconColor="#34d399"
+          borderColor="#34d39926"
         />
         <MetricCard
-          icon={<TbCancel size={30} />}
+          icon={<CircleX size={20} />}
           label="Denied"
           value={stats.total_deny}
+          iconColor="#ff6b6b"
+          borderColor="#ff6b6b26"
           sub={`${(
             (stats.total_attempts > 0
               ? stats.total_deny / stats.total_attempts
               : 0) * 100
           ).toFixed(1)}%`}
-          glowColor="rgba(255,107,107,0.15)"
         />
         <MetricCard
-          icon={<MdOutlineTimer size={30} />}
+          icon={<Timer size={20} />}
           label="Avg Latency"
           value={`${stats.avg_latency_ms?.toFixed(2) ?? "—"}`}
           sub="ms"
-          glowColor="rgba(125,211,252,0.1)"
+          iconColor="#7dd3fc"
+          borderColor="#7dd3fc14"
         />
         <MetricCard
-          icon={<BsPersonFillCheck size={30} />}
+          icon={<UserCheck size={20} />}
           label="Avg Score (Allow)"
           value={stats.avg_score_allow?.toFixed(4) ?? "—"}
-          glowColor="rgba(52,211,153,0.1)"
+          iconColor="#34d399"
+          borderColor="#34d39926"
         />
         <MetricCard
-          icon={<IoAnalyticsSharp size={30} />}
+          icon={<SquareDashedKanban size={20} className="scale-y-[-1]" />}
           label="Avg Score"
+          iconColor="#7dd3fc"
+          borderColor="#7dd3fc14"
           value={
             stats.avg_score_allow != null
               ? (
@@ -383,7 +345,6 @@ export default function Statistics(): JSX.Element {
                 ).toFixed(3)
               : "—"
           }
-          glowColor="rgba(125,211,252,0.1)"
         />
       </div>
 

@@ -21,10 +21,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "users", icon: <LuUsers />, label: "Users" },
-  { id: "live", icon: <GoDeviceCameraVideo />, label: "Live Feed" },
-  { id: "stats", icon: <RiBarChartFill />, label: "Statistics" },
-  { id: "alerts", icon: <LuShieldAlert />, label: "Security Alerts" },
+  { id: "users", icon: <LuUsers size={25} />, label: "Users" },
+  { id: "live", icon: <GoDeviceCameraVideo size={25} />, label: "Live Feed" },
+  { id: "stats", icon: <RiBarChartFill size={25} />, label: "Statistics" },
+  { id: "alerts", icon: <LuShieldAlert size={25} />, label: "Security Alerts" },
 ];
 
 export default function Sidebar({
@@ -36,9 +36,9 @@ export default function Sidebar({
     <nav
       className="
       fixed h-full left-0 w-64
-      bg-[#111828]/60 backdrop-blur-2xl
+      bg-[#0a0e1acc] backdrop-blur-2xl
       text-primary font-body
-      border-r border-primary/10 shadow-2xl
+      border-r border-[#7dd3fc14] shadow-2xl
       flex flex-col p-4 gap-2 z-40
       hidden md:flex
     "
@@ -66,21 +66,15 @@ export default function Sidebar({
             className={`
               flex items-center gap-3 rounded-lg px-4 py-3
               transition-all active:translate-x-1 duration-150
-              text-sm font-medium w-full text-left cursor-pointer
+              text-lg font-medium w-full text-left cursor-pointer
               ${
                 tab === item.id
-                  ? "bg-primary/15 text-primary border border-primary/20"
-                  : "text-[#a0b4c4] hover:text-[#e0e8f0] hover:bg-[#202c42]/50"
+                  ? "text-[#7dd3fc] bg-[#7dd3fc1a]"
+                  : "text-[#a0b4c4] hover:text-[#7dd3fc] hover:bg-[#7dd3fc1a]"
               }
             `}
           >
-            <span
-              className="material-symbols-outlined text-[20px]"
-              style={{
-                fontVariationSettings:
-                  tab === item.id ? "'FILL' 1" : "'FILL' 0",
-              }}
-            >
+            <span className="flex items-center justify-center shrink-0">
               {item.icon}
             </span>
             {item.label}

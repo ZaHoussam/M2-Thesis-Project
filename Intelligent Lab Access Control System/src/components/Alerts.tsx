@@ -5,17 +5,17 @@
 import { useEffect, useRef, useState, type JSX } from "react";
 import axios from "axios";
 import type { AlertEntry } from "../types";
-import { MdOutlineLockPerson, MdOutlineVisibility } from "react-icons/md";
 import { TbShieldBolt } from "react-icons/tb";
-import { IoShieldCheckmarkOutline } from "react-icons/io5";
 import { exportAlertsCSV, exportAlertsPDF } from "../utils/exportAlerts";
-import { CiViewTable } from "react-icons/ci";
-import { PiFilePdfDuotone } from "react-icons/pi";
+import { motion, AnimatePresence } from "framer-motion";
+import { FileText, Sheet, UserLock, Eye, ShieldCheck } from "lucide-react";
 
 const API = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000/alerts/ws";
 
 type FilterTab = "all" | "active" | "resolved";
+
+const ITEMS_PER_PAGE = 10;
 
 // ── Severity config ───────────────────────────────────────────────
 const SEVERITY_CONFIG: Record<
@@ -47,20 +47,20 @@ const SEVERITY_CONFIG: Record<
 // ── Alert type config ─────────────────────────────────────────────
 const TYPE_CONFIG: Record<
   string,
-  { icon: JSX.Element; label: string; iconColor: string }
+  { icon: JSX.Element | string; label: string; iconColor: string }
 > = {
   CONSECUTIVE_DENY: {
-    icon: <MdOutlineLockPerson size={24} />,
+    icon: <UserLock size={18} />,
     label: "Consecutive Denials",
     iconColor: "#ff6b6b",
   },
   HIGH_VOLUME: {
-    icon: <TbShieldBolt size={24} />,
+    icon: <TbShieldBolt size={18} />,
     label: "High Volume",
     iconColor: "#EF9F27",
   },
   SUSPICIOUS_MOVEMENT: {
-    icon: <MdOutlineVisibility size={24} />,
+    icon: <Eye size={18} />,
     label: "Suspicious Movement",
     iconColor: "#EF9F27",
   },
@@ -83,6 +83,7 @@ export default function Alerts(): JSX.Element {
   const [connected, setConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<FilterTab>("all");
+  const [page, setPage] = useState<number>(1);
   const wsRef = useRef<WebSocket | null>(null);
 
   // ── Fetch ─────────────────────────────────────────────────────
@@ -139,18 +140,29 @@ export default function Alerts(): JSX.Element {
     };
   }, []);
 
-  // ── Derived stats ─────────────────────────────────────────────
+  // ── Reset page when filter adjustments happen ──────────────────
+  useEffect(() => {
+    setPage(1);
+  }, [filter]);
+
+  // ── Derived stats & Pagination logic ──────────────────────────
   const activeCount = alerts.filter((a) => !a.is_resolved).length;
-  const resolvedCount = alerts.filter((a) => a.is_resolved).length;
-  const criticalCount = alerts.filter(
-    (a) => a.severity === "CRITICAL" && !a.is_resolved,
-  ).length;
 
   const filtered = alerts.filter((a) => {
     if (filter === "active") return !a.is_resolved;
     if (filter === "resolved") return a.is_resolved;
     return true;
   });
+
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE) || 1;
+
+  // Guard current page from staying higher than total calculated pages
+  const currentPage = Math.min(page, totalPages);
+
+  const paginatedAlerts = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
 
   // ── Loading ───────────────────────────────────────────────────
   if (loading) {
@@ -213,7 +225,7 @@ export default function Alerts(): JSX.Element {
             {connected ? "Live" : "Reconnecting..."}
           </div>
         </div>
-        {/* ── Export buttons — add these ── */}
+        {/* ── Export buttons ── */}
         <div className="flex gap-2 ml-auto">
           <button
             onClick={() => exportAlertsCSV(filtered)}
@@ -229,7 +241,7 @@ export default function Alerts(): JSX.Element {
     "
             title="Export as CSV — opens in Excel"
           >
-            <CiViewTable size={16} />
+            <Sheet size={16} />
             CSV
           </button>
           <button
@@ -246,7 +258,7 @@ export default function Alerts(): JSX.Element {
     "
             title="Export as PDF — opens print dialog"
           >
-            <PiFilePdfDuotone size={16} />
+            <FileText size={16} />
             PDF
           </button>
         </div>
@@ -300,10 +312,7 @@ export default function Alerts(): JSX.Element {
         <div className="overflow-x-auto flex-1 custom-scrollbar">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <IoShieldCheckmarkOutline
-                size={48}
-                className="text-emerald-400"
-              />
+              <ShieldCheck size={48} className="text-emerald-400" />
               <p className="text-sm text-[#a0b4c4]">
                 {filter === "active"
                   ? "No active alerts — system is secure"
@@ -326,190 +335,265 @@ export default function Alerts(): JSX.Element {
                     <th
                       key={h}
                       className="
-                        px-6 py-3 text-left
-                        text-xs font-semibold uppercase
-                        tracking-wider text-[#4a6070]
-                      "
+            px-6 py-3 text-left
+            text-xs font-semibold uppercase
+            tracking-wider text-[#4a6070]
+          "
                     >
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                {filtered.map((a: AlertEntry) => {
-                  const sev =
-                    SEVERITY_CONFIG[a.severity] ?? SEVERITY_CONFIG["LOW"];
-                  const type = TYPE_CONFIG[a.alert_type] ?? {
-                    icon: "notifications",
-                    label: a.alert_type,
-                    iconColor: "#a0b4c4",
-                  };
 
-                  return (
-                    <tr
-                      key={a.id}
-                      className={`
-                        border-b border-[#2a3a48]/30
-                        transition-colors
-                        hover:bg-[#181818]
-                        ${a.is_resolved ? "opacity-50" : ""}
-                      `}
-                    >
-                      {/* Severity */}
-                      <td className="px-6 py-4">
-                        <span
+              <AnimatePresence mode="wait">
+                <motion.tbody
+                  key={currentPage} // triggers page-swap transition via key changing
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{
+                    duration: 0.2,
+                    ease: "easeInOut",
+                  }}
+                >
+                  {paginatedAlerts.map((a: AlertEntry, index: number) => {
+                    const sev =
+                      SEVERITY_CONFIG[a.severity] ?? SEVERITY_CONFIG["LOW"];
+
+                    const type = TYPE_CONFIG[a.alert_type] ?? {
+                      icon: "notifications",
+                      label: a.alert_type,
+                      iconColor: "#a0b4c4",
+                    };
+
+                    return (
+                      <motion.tr
+                        key={a.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.18,
+                          delay: index * 0.02,
+                        }}
+                        className={`
+              border-b border-[#2a3a48]/30
+              transition-colors
+              hover:bg-[#181818]
+              ${a.is_resolved ? "opacity-50" : ""}
+            `}
+                      >
+                        {/* Severity */}
+                        <td className="px-6 py-4">
+                          <span
+                            className="
+                  px-2.5 py-1 rounded-md
+                  text-[10px] font-bold
+                  uppercase tracking-wider
+                  border
+                "
+                            style={{
+                              background: sev.bg,
+                              color: sev.color,
+                              borderColor: sev.border,
+                            }}
+                          >
+                            {a.severity}
+                          </span>
+                        </td>
+
+                        {/* Timestamp */}
+                        <td
                           className="
-                            px-2.5 py-1 rounded-md
-                            text-[10px] font-bold
-                            uppercase tracking-wider
-                            border
-                          "
-                          style={{
-                            background: sev.bg,
-                            color: sev.color,
-                            borderColor: sev.border,
-                          }}
+                px-6 py-4
+                text-xs font-mono text-[#a0b4c4]
+                whitespace-nowrap
+              "
                         >
-                          {a.severity}
-                        </span>
-                      </td>
+                          {timeAgo(a.created_at)}
+                        </td>
 
-                      {/* Timestamp */}
-                      <td
-                        className="
-                        px-6 py-4
-                        text-xs font-mono text-[#a0b4c4]
-                        whitespace-nowrap
-                      "
-                      >
-                        {timeAgo(a.created_at)}
-                      </td>
-
-                      {/* Alert type */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="material-symbols-outlined text-[18px]"
-                            style={{ color: type.iconColor }}
-                          >
-                            {type.icon}
-                          </span>
-                          <span className="text-sm font-semibold text-[#e0e8f0] whitespace-nowrap">
-                            {type.label}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Lab */}
-                      <td className="px-6 py-4 text-xs font-mono text-[#a0b4c4]">
-                        LAB-{a.lab_id}
-                      </td>
-
-                      {/* Description */}
-                      <td
-                        className="
-                        px-6 py-4 text-xs text-[#a0b4c4]
-                        max-w-xs
-                      "
-                      >
-                        <span className="line-clamp-2">{a.description}</span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="px-6 py-4">
-                        {a.is_resolved ? (
-                          <span
-                            className="
-                            flex items-center gap-1.5
-                            text-[10px] font-bold
-                            text-[#a0b4c4]
-                            uppercase tracking-wider
-                          "
-                          >
-                            <span className="material-symbols-outlined text-[14px] text-emerald-400">
-                              verified
+                        {/* Alert Type */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            {typeof type.icon === "string" ? (
+                              <span
+                                className="material-symbols-outlined text-[18px]"
+                                style={{ color: type.iconColor }}
+                              >
+                                {type.icon}
+                              </span>
+                            ) : (
+                              <span
+                                style={{ color: type.iconColor }}
+                                className="flex items-center"
+                              >
+                                {type.icon}
+                              </span>
+                            )}
+                            <span className="text-sm font-semibold text-[#e0e8f0] whitespace-nowrap">
+                              {type.label}
                             </span>
-                            Resolved
-                          </span>
-                        ) : (
-                          <span
-                            className="
-                            flex items-center gap-1.5
-                            text-[10px] font-bold
-                            text-[#ff6b6b]
-                            uppercase tracking-wider
-                          "
-                          >
-                            <span
-                              className="w-1.5 h-1.5 rounded-full bg-[#ff6b6b] inline-block"
-                              style={{ animation: "pulse 1.5s infinite" }}
-                            />
-                            Live
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="px-6 py-4 text-right">
-                        {a.is_resolved ? (
-                          <span
-                            className="
-                            text-[10px] font-bold
-                            text-[#4a6070]
-                            uppercase italic
-                          "
-                          >
-                            Archived
-                          </span>
-                        ) : (
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => resolveAlert(a.id)}
-                              className="
-                                px-3 py-1.5 rounded-lg
-                                border border-[#2a3a48]
-                                text-[#e0e8f0] text-[10px] font-bold
-                                uppercase tracking-wider
-                                hover:bg-emerald-500/10
-                                hover:border-emerald-500/30
-                                hover:text-emerald-400
-                                transition-all
-                              "
-                            >
-                              Resolve
-                            </button>
                           </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
+                        </td>
+
+                        {/* Lab */}
+                        <td className="px-6 py-4 text-xs font-mono text-[#a0b4c4]">
+                          LAB-{a.lab_id}
+                        </td>
+
+                        {/* Description */}
+                        <td
+                          className="
+                px-6 py-4 text-xs text-[#a0b4c4]
+                max-w-xs
+              "
+                        >
+                          <span className="line-clamp-2">{a.description}</span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-6 py-4">
+                          {a.is_resolved ? (
+                            <span
+                              className="
+                    flex items-center gap-1.5
+                    text-[10px] font-bold
+                    text-[#a0b4c4]
+                    uppercase tracking-wider
+                  "
+                            >
+                              <span className="material-symbols-outlined text-[14px] text-emerald-400">
+                                verified
+                              </span>
+                              Resolved
+                            </span>
+                          ) : (
+                            <span
+                              className="
+                    flex items-center gap-1.5
+                    text-[10px] font-bold
+                    text-[#ff6b6b]
+                    uppercase tracking-wider
+                  "
+                            >
+                              <span
+                                className="w-1.5 h-1.5 rounded-full bg-[#ff6b6b] inline-block"
+                                style={{ animation: "pulse 1.5s infinite" }}
+                              />
+                              Live
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-6 py-4 text-right">
+                          {a.is_resolved ? (
+                            <span
+                              className="
+                    text-[10px] font-bold
+                    text-[#4a6070]
+                    uppercase italic
+                  "
+                            >
+                              Archived
+                            </span>
+                          ) : (
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => resolveAlert(a.id)}
+                                className="
+                      px-3 py-1.5 rounded-lg
+                      border border-[#2a3a48]
+                      text-[#e0e8f0] text-[10px] font-bold
+                      uppercase tracking-wider
+                      hover:bg-emerald-500/10
+                      hover:border-emerald-500/30
+                      hover:text-emerald-400
+                      transition-all
+                    "
+                              >
+                                Resolve
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </motion.tbody>
+              </AnimatePresence>
             </table>
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer with Dynamic Pagination Controls */}
         <div
           className="
           px-6 py-4
           border-t border-[#2a3a48]/30
-          flex items-center justify-between
+          flex flex-col sm:flex-row items-center justify-between gap-4
           bg-[#141c2e]/30
         "
         >
-          <span className="text-xs text-[#4a6070] font-semibold uppercase tracking-wider">
-            Showing {filtered.length} of {alerts.length} alerts
-          </span>
-          <span
-            className={`
-            text-xs font-bold
-            ${connected ? "text-emerald-400" : "text-[#ff6b6b]"}
-          `}
-          >
-            {connected ? "● WebSocket Connected" : "○ Reconnecting..."}
-          </span>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+            <span className="text-xs text-[#4a6070] font-semibold uppercase tracking-wider">
+              Showing{" "}
+              {filtered.length === 0
+                ? 0
+                : (currentPage - 1) * ITEMS_PER_PAGE + 1}{" "}
+              to {Math.min(currentPage * ITEMS_PER_PAGE, filtered.length)} of{" "}
+              {filtered.length} alerts
+            </span>
+            <span
+              className={`
+              text-xs font-bold hidden sm:inline
+              ${connected ? "text-emerald-400" : "text-[#ff6b6b]"}
+            `}
+            >
+              {connected ? "● WebSocket Connected" : "○ Reconnecting..."}
+            </span>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2 ml-auto sm:ml-0">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                className="
+                  px-3 py-1.5 rounded-lg
+                  border border-[#2a3a48]
+                  text-[#a0b4c4] text-xs font-semibold
+                  hover:enabled:text-[#e0e8f0] hover:enabled:bg-white/5
+                  disabled:opacity-30 disabled:cursor-not-allowed
+                  transition-all cursor-pointer
+                "
+              >
+                Previous
+              </button>
+
+              <span className="text-xs text-[#a0b4c4] font-mono px-2">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              <button
+                disabled={currentPage === totalPages}
+                onClick={() =>
+                  setPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                className="
+                  px-3 py-1.5 rounded-lg
+                  border border-[#2a3a48]
+                  text-[#a0b4c4] text-xs font-semibold
+                  hover:enabled:text-[#e0e8f0] hover:enabled:bg-white/5
+                  disabled:opacity-30 disabled:cursor-not-allowed
+                  transition-all cursor-pointer
+                "
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

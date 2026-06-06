@@ -23,7 +23,7 @@ export default function App(): JSX.Element {
   }
 
   return (
-    <div className="bg-[#0F0F0F] text-[#e0e8f0] h-screen overflow-hidden flex font-body dark">
+    <div className="bg-[#0a0e1a] text-[#e0e8f0] h-screen overflow-hidden flex font-body dark">
       {/* Sidebar */}
       <Sidebar tab={tab} setTab={setTab} onLogout={handleLogout} />
 
