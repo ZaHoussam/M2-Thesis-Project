@@ -23,6 +23,7 @@ import {
   LinearScale,
   BarElement,
 } from "chart.js";
+import noChart from "../assets/noCharts.png";
 
 import { Doughnut, Bar } from "react-chartjs-2";
 
@@ -124,7 +125,7 @@ function DonutChart({
   };
 
   return (
-    <div className="glass-panel rounded-xl p-6">
+    <div className="glass-panel rounded-xl p-6 bg-[#0f152480]">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-bold text-[#e0e8f0]">Distribution</h3>
         <span className="text-[#a0b4c4]">
@@ -219,7 +220,7 @@ function ScoreBarChart({ logs }: { logs: LogEntry[] }): JSX.Element {
   };
 
   return (
-    <div className="glass-panel rounded-xl p-6 lg:col-span-2">
+    <div className="glass-panel rounded-xl p-6 lg:col-span-2 bg-[#0f152480]">
       <div className="flex justify-between items-center mb-6">
         <h3 className="text-lg font-bold text-[#e0e8f0]">
           Score Distribution (0.0 - 1.0)
@@ -260,9 +261,15 @@ export default function Statistics(): JSX.Element {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full gap-3 text-[#a0b4c4]">
-        <span className="text-3xl animate-spin">refresh</span>
-        Loading statistics...
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="loading-wave">
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+        </div>
+
+        <p className="mt-4 text-sm text-[#a0b4c4]">Loading statistics...</p>
       </div>
     );
   }
@@ -270,8 +277,8 @@ export default function Statistics(): JSX.Element {
   if (!stats) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 text-[#a0b4c4]">
-        <span className="text-4xl">bar_chart_off</span>
-        <p className="text-sm">No data available yet.</p>
+        <img src={noChart} alt="No data available" className="w-[150px]" />
+        <p className="text-xl">No data available yet.</p>
       </div>
     );
   }

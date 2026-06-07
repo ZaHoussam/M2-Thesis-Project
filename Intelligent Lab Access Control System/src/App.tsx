@@ -19,7 +19,7 @@ export default function App(): JSX.Element {
   };
 
   if (!loggedIn) {
-    // return <Login onLogin={() => setLoggedIn(true)} />;
+    return <Login onLogin={() => setLoggedIn(true)} />;
   }
 
   return (

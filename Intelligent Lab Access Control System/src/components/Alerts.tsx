@@ -8,7 +8,15 @@ import type { AlertEntry } from "../types";
 import { TbShieldBolt } from "react-icons/tb";
 import { exportAlertsCSV, exportAlertsPDF } from "../utils/exportAlerts";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Sheet, UserLock, Eye, ShieldCheck } from "lucide-react";
+import {
+  FileText,
+  Sheet,
+  UserLock,
+  Eye,
+  ShieldCheck,
+  CircleCheck,
+} from "lucide-react";
+import { IoIosArrowDropleft } from "react-icons/io";
 
 const API = "http://localhost:8000";
 const WS_URL = "ws://localhost:8000/alerts/ws";
@@ -167,11 +175,15 @@ export default function Alerts(): JSX.Element {
   // ── Loading ───────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full gap-3 text-[#a0b4c4]">
-        <span className="material-symbols-outlined text-3xl animate-spin">
-          refresh
-        </span>
-        Loading security alerts...
+      <div className="flex flex-col items-center justify-center h-full">
+        <div className="loading-wave">
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+          <div className="loading-bar"></div>
+        </div>
+
+        <p className="mt-4 text-sm text-[#a0b4c4]">Loading alerts...</p>
       </div>
     );
   }
@@ -181,7 +193,7 @@ export default function Alerts(): JSX.Element {
       {/* ── Header ─────────────────────────────────────────── */}
       <div className="flex items-start justify-between">
         <div className="relative">
-          <h2 className="text-2xl font-bold text-[#e0e8f0] tracking-tight flex items-center gap-3">
+          <h2 className="text-2xl tracking-[0.5px] font-bold text-[#e0e8f0] flex items-center gap-3 uppercase">
             Security Alerts
             {activeCount > 0 && (
               <span
@@ -320,7 +332,7 @@ export default function Alerts(): JSX.Element {
               </p>
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full overflow-hidden">
               <thead>
                 <tr className="border-b border-[#2a3a48]/50">
                   {[
@@ -464,7 +476,7 @@ export default function Alerts(): JSX.Element {
                   "
                             >
                               <span className="material-symbols-outlined text-[14px] text-emerald-400">
-                                verified
+                                <CircleCheck size={14} />
                               </span>
                               Resolved
                             </span>
@@ -569,7 +581,7 @@ export default function Alerts(): JSX.Element {
                   transition-all cursor-pointer
                 "
               >
-                Previous
+                <IoIosArrowDropleft className="text-[25px]" />
               </button>
 
               <span className="text-xs text-[#a0b4c4] font-mono px-2">
@@ -590,7 +602,7 @@ export default function Alerts(): JSX.Element {
                   transition-all cursor-pointer
                 "
               >
-                Next
+                <IoIosArrowDropleft className="text-[25px] rotate-180" />
               </button>
             </div>
           )}
