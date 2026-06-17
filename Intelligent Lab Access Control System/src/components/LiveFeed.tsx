@@ -12,13 +12,17 @@ import {
   Pause,
   CircleX,
   BrushCleaning,
+  UserRoundX,
 } from "lucide-react";
 import { MdOutlineSensorsOff } from "react-icons/md";
+import { motion, AnimatePresence } from "framer-motion";
+import { IoIosArrowDropleft } from "react-icons/io";
 
 const WS_URL = "ws://localhost:8000/logs/ws";
 
 // Score thresholds for event type
-const SCORE_REVIEW_THRESHOLD = 0.7; // below this → amber "Review"
+const SCORE_REVIEW_THRESHOLD = 0.7;
+const ITEMS_PER_PAGE = 10;
 
 function getEventStyle(e: LiveEvent): {
   bg: string;
@@ -100,7 +104,7 @@ function Avatar({ userId }: { userId: number | null }): JSX.Element {
   if (!userId)
     return (
       <div className="w-8 h-8 rounded-full border border-[#ff6b6b]/30 bg-[#141c2e] flex items-center justify-center text-[#ff6b6b]">
-        <span className="material-symbols-outlined text-sm">person_off</span>
+        <UserRoundX size={16} />
       </div>
     );
   return (
@@ -116,6 +120,7 @@ export default function LiveFeed(): JSX.Element {
   const [paused, setPaused] = useState<boolean>(false);
   const wsRef = useRef<WebSocket | null>(null);
   const pauseRef = useRef<boolean>(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
 
   useEffect(() => {
     const connect = (): void => {
@@ -152,6 +157,12 @@ export default function LiveFeed(): JSX.Element {
     pauseRef.current = !pauseRef.current;
     setPaused(pauseRef.current);
   };
+
+  const paginatedEvents = events.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE,
+  );
+  const totalPages = Math.ceil(events.length / ITEMS_PER_PAGE);
 
   const clearFeed = (): void => setEvents([]);
 
@@ -310,27 +321,10 @@ export default function LiveFeed(): JSX.Element {
 
       {/* Event list */}
       <div className="glass-elevated rounded-xl flex flex-col flex-1 overflow-hidden">
-        {/* Column headers */}
-        <div
-          className="
-          grid grid-cols-12 gap-4 px-4 py-3
-          border-b border-[#2a3a48]/50
-          text-xs font-semibold text-[#a0b4c4] uppercase tracking-wider
-        "
-        >
-          <div className="col-span-2">Timestamp</div>
-          <div className="col-span-3">Identity</div>
-          <div className="col-span-2">Lab / Door</div>
-          <div className="col-span-2">Confidence</div>
-          <div className="col-span-2">Decision</div>
-          <div className="col-span-1 text-right">Latency</div>
-        </div>
-
-        {/* Events */}
         <div
           className="
           flex-1 overflow-auto custom-scrollbar
-          flex flex-col gap-2 p-3
+          flex flex-col gap-2
           relative
         "
         >
@@ -344,115 +338,128 @@ export default function LiveFeed(): JSX.Element {
               </p>
             </div>
           ) : (
-            events.map((e: LiveEvent, i: number) => {
-              const style = getEventStyle(e);
-              const badge = getOutcomeBadge(e);
-              const icon = getIcon(e);
-              const scoreColor = getScoreColor(e);
-              const score =
-                e.similarity_score !== null
-                  ? `${(e.similarity_score * 100).toFixed(2)}%`
-                  : "—";
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 z-20 bg-[#0f1524]/95 border-b border-[#2a3a48]/50">
+                <tr className="text-xs font-semibold text-[#a0b4c4] uppercase tracking-wider">
+                  <th className="px-4 py-3">Timestamp</th>
+                  <th className="px-4 py-3">Identity</th>
+                  <th className="px-4 py-3">Lab / Door</th>
+                  <th className="px-4 py-3">Confidence</th>
+                  <th className="px-4 py-3">Decision</th>
+                  <th className="px-4 py-3 text-right">Latency</th>
+                </tr>
+              </thead>
+              <tbody className="p-3">
+                <AnimatePresence mode="popLayout">
+                  {paginatedEvents.map((e, i) => {
+                    const style = getEventStyle(e);
+                    const badge = getOutcomeBadge(e);
+                    const icon = getIcon(e);
+                    const scoreColor = getScoreColor(e);
+                    const score =
+                      e.similarity_score !== null
+                        ? `${(e.similarity_score * 100).toFixed(2)}%`
+                        : "—";
 
-              return (
-                <div
-                  key={i}
-                  className={`
-                    grid grid-cols-12 gap-4 px-4 py-3
-                    items-center rounded-lg border
-                    relative overflow-hidden
-                    transition-colors group
-                    ${style.bg} ${style.border}
-                    ${style.hoverBg} ${style.hoverBorder}
-                    animate-[slide-in-right_0.3s_ease-out_forwards]
-                  `}
-                  style={{ animationDelay: `${i * 0.02}s` }}
-                >
-                  {/* Left accent bar */}
-                  <div
-                    className={`
-                    absolute left-0 top-0 bottom-0 w-1
-                    ${style.accentBar}
-                    group-hover:opacity-100
-                    transition-all
-                    shadow-[0_0_10px_rgba(125,211,252,0.2)]
-                  `}
-                  />
-
-                  {/* Timestamp */}
-                  <div className="col-span-2 text-sm text-[#a0b4c4] flex items-center gap-2">
-                    <span
-                      className={`material-symbols-outlined text-[16px] ${icon.color}`}
-                    >
-                      {icon.icon}
-                    </span>
-                    <span className="font-mono text-xs">
-                      {formatTime(e.created_at)}
-                    </span>
-                  </div>
-
-                  {/* Identity */}
-                  <div className="col-span-3 flex items-center gap-3">
-                    <Avatar userId={e.user_id} />
-                    <div>
-                      <div className="text-sm font-medium text-[#e0e8f0]">
-                        {e.user_name ??
-                          (e.user_id ? `User #${e.user_id}` : "Unknown Entity")}
-                      </div>
-                      <div
-                        className={`text-xs font-mono ${e.user_id ? "text-[#a0b4c4]" : "text-[#ff6b6b]"}`}
+                    return (
+                      <motion.tr
+                        key={e.id ?? i}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        transition={{ duration: 0.2 }}
+                        className={`border-b border-[#2a3a48]/20 ${style.bg} ${style.hoverBg}`}
                       >
-                        {e.user_id
-                          ? `UID-${String(e.user_id).padStart(4, "0")}`
-                          : "UID-NULL"}
-                      </div>
-                    </div>
-                  </div>
+                        {/* Timestamp */}
+                        <td className="px-4 py-3 text-sm text-[#a0b4c4] flex items-center gap-2">
+                          <span
+                            className={`material-symbols-outlined text-[16px] ${icon.color}`}
+                          >
+                            {icon.icon}
+                          </span>
+                          <span className="font-mono text-xs">
+                            {formatTime(e.created_at)}
+                          </span>
+                        </td>
 
-                  {/* Lab */}
-                  <div className="col-span-2 text-sm text-[#a0b4c4]">
-                    Lab #{e.lab_id}
-                  </div>
+                        {/* Identity */}
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar userId={e.user_id} />
+                            <div>
+                              <div className="text-sm font-medium text-[#e0e8f0]">
+                                {e.user_name ??
+                                  (e.user_id
+                                    ? `User #${e.user_id}`
+                                    : "Unknown Entity")}
+                              </div>
+                              <div
+                                className={`text-xs font-mono ${e.user_id ? "text-[#a0b4c4]" : "text-[#ff6b6b]"}`}
+                              >
+                                {e.user_id
+                                  ? `UID-${String(e.user_id).padStart(4, "0")}`
+                                  : "UID-NULL"}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
 
-                  {/* Confidence */}
-                  <div className={`col-span-2 font-mono text-sm ${scoreColor}`}>
-                    {score}
-                  </div>
+                        {/* Lab */}
+                        <td className="px-4 py-3 text-sm text-[#a0b4c4]">
+                          Lab #{e.lab_id}
+                        </td>
 
-                  {/* Decision badge */}
-                  <div className="col-span-2">
-                    <span
-                      className={`
-                      px-2.5 py-1 rounded-md border
-                      text-xs font-semibold uppercase tracking-wider
-                      ${badge.cls}
-                    `}
-                    >
-                      {badge.label}
-                    </span>
-                  </div>
+                        {/* Confidence */}
+                        <td
+                          className={`px-4 py-3 font-mono text-sm ${scoreColor}`}
+                        >
+                          {score}
+                        </td>
 
-                  {/* Latency */}
-                  <div className="col-span-1 text-right text-xs text-[#a0b4c4] font-mono">
-                    {e.latency_ms != null
-                      ? `${e.latency_ms.toFixed(1)}ms`
-                      : "—"}
-                  </div>
-                </div>
-              );
-            })
+                        {/* Decision */}
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2.5 py-1 rounded-md border text-xs font-semibold uppercase tracking-wider ${badge.cls}`}
+                          >
+                            {badge.label}
+                          </span>
+                        </td>
+
+                        {/* Latency */}
+                        <td className="px-4 py-3 text-right text-xs text-[#a0b4c4] font-mono">
+                          {e.latency_ms != null
+                            ? `${e.latency_ms.toFixed(1)}ms`
+                            : "—"}
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
+              </tbody>
+            </table>
           )}
-
-          {/* Bottom fade */}
-          {events.length > 5 && (
-            <div
-              className="
-              absolute bottom-0 left-0 w-full h-12
-              bg-gradient-to-t from-[#0f1524]/80 to-transparent
-              pointer-events-none rounded-b-xl z-10
-            "
-            />
-          )}
+        </div>
+        {/* Pagination Controls */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-[#2a3a48]/50 bg-[#0f1524]/50">
+          <span className="text-xs text-[#a0b4c4]">
+            Page {currentPage} of {totalPages}
+          </span>
+          <div className="flex gap-2">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+              className="px-3 py-1 text-xs rounded bg-[#141c2e] text-[#a0b4c4] disabled:opacity-30"
+            >
+              <IoIosArrowDropleft className="text-[25px]" />
+            </button>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+              className="px-3 py-1 text-xs rounded bg-[#141c2e] text-[#a0b4c4] disabled:opacity-30"
+            >
+              <IoIosArrowDropleft className="text-[25px] rotate-180" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

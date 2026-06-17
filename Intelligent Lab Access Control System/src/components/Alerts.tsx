@@ -276,7 +276,7 @@ export default function Alerts(): JSX.Element {
         </div>
       </div>
       {/* ── Table card ─────────────────────────────────────── */}
-      <div className="glass-elevated rounded-xl overflow-hidden flex flex-col">
+      <div className="glass-elevated rounded-xl overflow-hidden flex flex-col bg-[#141c2e99]">
         {/* Table header + filter tabs */}
         <div
           className="
