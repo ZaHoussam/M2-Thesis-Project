@@ -40,10 +40,17 @@ def camera_worker(
 
             if result is not None:
                 bbox = result["bbox"]
-                crop = frame[
-                    bbox[1]:bbox[3],
-                    bbox[0]:bbox[2]
-                ]
+                # Clip bbox to frame bounds to avoid empty crops
+                h_frame, w_frame = frame.shape[:2]
+                y1 = max(0, int(bbox[1])); y2 = min(h_frame, int(bbox[3]))
+                x1 = max(0, int(bbox[0])); x2 = min(w_frame, int(bbox[2]))
+
+                # If the clipped box is invalid, skip this detection
+                if y2 <= y1 or x2 <= x1:
+                    aggregator.clear()
+                    continue
+
+                crop = frame[y1:y2, x1:x2]
 
                 # ── Anti-spoof check ──────────────────────────
                 spoof_result = antispoof.predict(crop)

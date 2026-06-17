@@ -104,8 +104,37 @@ class AntiSpoofDetector:
             label      : "REAL" or "SPOOF"
             scores     : dict of individual scores (for debugging)
         """
+        # Validate input
+        if face_crop_bgr is None or not hasattr(face_crop_bgr, "size") or face_crop_bgr.size == 0:
+            return {
+                "is_real": False,
+                "real_prob": 0.0,
+                "spoof_prob": 1.0,
+                "label": "SPOOF",
+                "scores": {
+                    "texture_variance": 0.0,
+                    "lbp_diversity": 0.0,
+                    "freq_ratio": 0.0,
+                    "combined": 0.0,
+                }
+            }
+
         # Resize to standard size for consistent analysis
-        resized = cv2.resize(face_crop_bgr, (128, 128))
+        try:
+            resized = cv2.resize(face_crop_bgr, (128, 128))
+        except Exception:
+            return {
+                "is_real": False,
+                "real_prob": 0.0,
+                "spoof_prob": 1.0,
+                "label": "SPOOF",
+                "scores": {
+                    "texture_variance": 0.0,
+                    "lbp_diversity": 0.0,
+                    "freq_ratio": 0.0,
+                    "combined": 0.0,
+                }
+            }
         gray    = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
 
         # Score 1 — texture variance (main signal)
